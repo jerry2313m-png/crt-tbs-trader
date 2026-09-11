@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0e17">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>CRT+TBS Trader — Adaptive Multi-Asset</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div id="app">
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-left">
+      <span class="connection-dot connected" id="connDot"></span>
+      <span class="conn-text" id="connText">CONNECTED</span>
+    </div>
+    <div class="status-center">
+      <span id="clockDisplay">--:--</span>
+    </div>
+    <div class="status-right">
+      <span id="sessionBadge" class="session-badge">AUTO</span>
+    </div>
+  </div>
+
+  <!-- App Container -->
+  <div class="app-container">
+
+    <!-- ===== DASHBOARD TAB ===== -->
+    <div class="tab-content active" id="tab-dashboard">
+
+      <!-- Symbol Selector -->
+      <div class="symbol-ribbon">
+        <div class="symbol-tabs" id="symbolTabs">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Main Signal Card -->
+      <div class="card signal-card" id="signalCard">
+        <div class="card-header">
+          <div class="asset-info">
+            <span class="asset-name" id="assetName">XAUUSD</span>
+            <span class="asset-type-badge" id="assetType">GOLD</span>
+          </div>
+          <div class="asset-price-box">
+            <span class="asset-price" id="assetPrice">--</span>
+            <span class="asset-change" id="assetChange">--</span>
+          </div>
+        </div>
+
+        <div class="signal-display">
+          <div class="signal-badge" id="signalBadge">
+            <div class="signal-ring"></div>
+            <div class="signal-text">
+              <span class="signal-label" id="signalLabel">ANALYZING</span>
+              <span class="signal-sub" id="signalSub">Scanning market structure…</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="confidence-bar-wrap">
+          <div class="confidence-label-row">
+            <span>Setup Confidence</span>
+            <span class="conf-value" id="confValue">0/100</span>
+          </div>
+          <div class="confidence-track">
+            <div class="confidence-fill" id="confFill" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Market Structure Grid -->
+      <div class="card">
+        <div class="card-title">Market Structure</div>
+        <div class="grid-2">
+          <div class="stat-block">
+            <span class="stat-label">Trend (H4)</span>
+            <span class="stat-value" id="trendValue">—</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-label">Structure</span>
+            <span class="stat-value" id="structureValue">—</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-label">CRT Status</span>
+            <span class="stat-value" id="crtStatus">—</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-label">Entry Zone</span>
+            <span class="stat-value" id="entryZone">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trade Parameters -->
+      <div class="card">
+        <div class="card-title">Trade Parameters</div>
+        <div class="param-list">
+          <div class="param-row">
+            <span class="p-label">ATR (14)</span>
+            <span class="p-value mono" id="atrValue">—</span>
+          </div>
+          <div class="param-row">
+            <span class="p-label">Spread</span>
+            <span class="p-value mono" id="spreadValue">—</span>
+          </div>
+          <div class="param-row">
+            <span class="p-label">Risk</span>
+            <span class="p-value mono" id="riskValue">—</span>
+          </div>
+          <div class="param-row">
+            <span class="p-label">Stop Loss</span>
+            <span class="p-value mono red" id="slValue">—</span>
+          </div>
+          <div class="param-row">
+            <span class="p-label">Take Profit</span>
+            <span class="p-value mono green" id="tpValue">—</span>
+          </div>
+          <div class="param-row">
+            <span class="p-label">R:R Ratio</span>
+            <span class="p-value mono" id="rrValue">—</span>
+          </div>
+          <div class="param-row">
+            <span class="p-label">Lot Size</span>
+            <span class="p-value mono" id="lotValue">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Performance -->
+      <div class="card">
+        <div class="card-title">Today's Performance</div>
+        <div class="grid-4">
+          <div class="stat-block mini">
+            <span class="stat-label">Trades</span>
+            <span class="stat-value small" id="todayTrades">0</span>
+          </div>
+          <div class="stat-block mini">
+            <span class="stat-label">Win Rate</span>
+            <span class="stat-value small" id="winRate">—</span>
+          </div>
+          <div class="stat-block mini">
+            <span class="stat-label">P/L</span>
+            <span class="stat-value small green" id="todayPL">$0.00</span>
+          </div>
+          <div class="stat-block mini">
+            <span class="stat-label">Drawdown</span>
+            <span class="stat-value small red" id="drawdown">0.0%</span>
+          </div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label">
+            <span>Daily Risk Used</span>
+            <span id="riskUsedLabel">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill risk" id="riskUsed" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label">
+            <span>Daily Progress</span>
+            <span id="dailyProgressLabel">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill profit" id="dailyProgress" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart Area -->
+      <div class="card chart-card">
+        <div class="card-title">Price Action &amp; Structure</div>
+        <canvas id="priceChart" class="price-canvas"></canvas>
+        <div class="chart-legend">
+          <span class="legend-item"><span class="legend-dot bull"></span>Bullish</span>
+          <span class="legend-item"><span class="legend-dot bear"></span>Bearish</span>
+          <span class="legend-item"><span class="legend-dot fvg"></span>FVG</span>
+          <span class="legend-item"><span class="legend-dot liq"></span>Liquidity</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-bar">
+        <button class="btn btn-secondary" id="btnPaper" onclick="togglePaperMode()">
+          <span class="btn-icon">📊</span><span>Paper Trading</span>
+        </button>
+        <button class="btn btn-primary" id="btnTrade" onclick="toggleAutoTrading()">
+          <span class="btn-icon">▶</span><span id="btnTradeText">Start Auto Trade</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== MARKETS TAB ===== -->
+    <div class="tab-content" id="tab-markets">
+      <div class="page-title">Markets</div>
+      <div class="search-box">
+        <input type="text" id="marketSearch" placeholder="Search symbols…" oninput="filterMarkets()">
+      </div>
+      <div class="asset-class-tabs" id="assetClassTabs">
+        <!-- JS populated -->
+      </div>
+      <div class="market-list" id="marketList">
+        <!-- JS populated -->
+      </div>
+    </div>
+
+    <!-- ===== TRADES TAB ===== -->
+    <div class="tab-content" id="tab-trades">
+      <div class="page-title">Open Positions</div>
+      <div class="trades-subtabs">
+        <button class="subtab active" data-stab="open" onclick="switchTradesTab('open')">Open (<span id="openCount">0</span>)</button>
+        <button class="subtab" data-stab="pending" onclick="switchTradesTab('pending')">Pending (<span id="pendingCount">0</span>)</button>
+        <button class="subtab" data-stab="history" onclick="switchTradesTab('history')">History</button>
+      </div>
+      <div id="tradesList" class="trades-list">
+        <div class="empty-state">No open positions</div>
+      </div>
+    </div>
+
+    <!-- ===== BACKTEST TAB ===== -->
+    <div class="tab-content" id="tab-backtest">
+      <div class="page-title">Backtesting</div>
+      <div class="card">
+        <div class="card-title">Strategy Comparison</div>
+        <div class="form-group">
+          <label>Symbol</label>
+          <select id="btSymbol" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label>Timeframe</label>
+          <select id="btTimeframe" class="form-select">
+            <option value="M5">M5</option>
+            <option value="M15" selected>M15</option>
+            <option value="H1">H1</option>
+            <option value="H4">H4</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Initial Balance</label>
+          <input type="number" id="btBalance" class="form-input" value="10000">
+        </div>
+        <div class="form-group">
+          <label>Bars to Simulate</label>
+          <input type="number" id="btBars" class="form-input" value="2000">
+        </div>
+        <button class="btn btn-primary full" onclick="runBacktest()">Run Backtest</button>
+      </div>
+
+      <div class="card" id="btResults" style="display:none">
+        <div class="card-title">Results</div>
+        <div class="grid-3">
+          <div class="stat-block"><span class="stat-label">Total Trades</span><span class="stat-value" id="btTrades">0</span></div>
+          <div class="stat-block"><span class="stat-label">Win Rate</span><span class="stat-value" id="btWinRate">—</span></div>
+          <div class="stat-block"><span class="stat-label">Net Profit</span><span class="stat-value green" id="btProfit">$0</span></div>
+          <div class="stat-block"><span class="stat-label">Profit Factor</span><span class="stat-value" id="btPF">—</span></div>
+          <div class="stat-block"><span class="stat-label">Max DD</span><span class="stat-value red" id="btDD">0%</span></div>
+          <div class="stat-block"><span class="stat-label">Avg RR</span><span class="stat-value" id="btRR">—</span></div>
+        </div>
+        <div class="bt-equity-wrap">
+          <canvas id="equityChart" class="equity-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS TAB ===== -->
+    <div class="tab-content" id="tab-settings">
+      <div class="page-title">Settings</div>
+
+      <div class="card">
+        <div class="card-title">Trading Mode</div>
+        <div class="mode-selector" id="modeSelector">
+          <button class="mode-btn active" data-mode="auto">Auto</button>
+          <button class="mode-btn" data-mode="scalping">Scalping</button>
+          <button class="mode-btn" data-mode="intraday">Intraday</button>
+          <button class="mode-btn" data-mode="swing">Swing</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Risk Management</div>
+        <div class="form-group">
+          <label>Risk Profile</label>
+          <select id="riskProfile" class="form-select" onchange="updateRiskProfile()">
+            <option value="conservative">Conservative (0.5%)</option>
+            <option value="balanced" selected>Balanced (1%)</option>
+            <option value="aggressive">Aggressive (2%)</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Risk Per Trade (%)</label>
+          <input type="range" id="riskSlider" min="0.1" max="5" step="0.1" value="1" oninput="updateRiskDisplay()">
+          <div class="range-val" id="riskSliderVal">1.0%</div>
+        </div>
+        <div class="form-group">
+          <label>Minimum Confidence Threshold</label>
+          <input type="range" id="confSlider" min="50" max="95" step="1" value="75" oninput="updateConfDisplay()">
+          <div class="range-val" id="confSliderVal">75/100</div>
+        </div>
+        <div class="form-group">
+          <label>Minimum Risk:Reward</label>
+          <input type="range" id="rrSlider" min="1" max="5" step="0.1" value="2" oninput="updateRRDisplay()">
+          <div class="range-val" id="rrSliderVal">1:2.0</div>
+        </div>
+        <div class="form-group switch-row">
+          <label>Small Account Mode</label>
+          <label class="switch"><input type="checkbox" id="smallAccountMode"><span class="slider-sw"></span></label>
+        </div>
+        <div class="form-group switch-row">
+          <label>Partial Profit Taking (TP1/TP2/TP3)</label>
+          <label class="switch"><input type="checkbox" id="partialTP" checked><span class="slider-sw"></span></label>
+        </div>
+        <div class="form-group switch-row">
+          <label>Break-Even After TP1</label>
+          <label class="switch"><input type="checkbox" id="breakEven" checked><span class="slider-sw"></span></label>
+        </div>
+        <div class="form-group switch-row">
+          <label>Trailing Stop</label>
+          <label class="switch"><input type="checkbox" id="trailingStop" checked><span class="slider-sw"></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Daily Limits</div>
+        <div class="form-group">
+          <label>Max Daily Loss (%)</label>
+          <input type="number" id="maxDailyLoss" class="form-input" value="5" step="0.5">
+        </div>
+        <div class="form-group">
+          <label>Daily Profit Target (%)</label>
+          <input type="number" id="dailyTarget" class="form-input" value="3" step="0.5">
+        </div>
+        <div class="form-group">
+          <label>Max Trades Per Day</label>
+          <input type="number" id="maxDailyTrades" class="form-input" value="10">
+        </div>
+        <div class="form-group">
+          <label>Max Consecutive Losses</label>
+          <input type="number" id="maxConsecLoss" class="form-input" value="5">
+        </div>
+        <div class="form-group switch-row">
+          <label>Stop Trading at Daily Target</label>
+          <label class="switch"><input type="checkbox" id="stopAtTarget" checked><span class="slider-sw"></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">News Filter</div>
+        <div class="form-group">
+          <label>News Filter Level</label>
+          <select id="newsFilter" class="form-select">
+            <option value="off">OFF</option>
+            <option value="low">Low Impact Only</option>
+            <option value="high" selected>High Impact Filter</option>
+            <option value="all">No Trading Around Major News</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Broker Connection</div>
+        <div class="form-group">
+          <label>Execution Mode</label>
+          <div class="mode-selector" id="executionMode">
+            <button class="mode-btn active" data-exec="demo">Demo (Simulated)</button>
+            <button class="mode-btn" data-exec="live" id="liveExecBtn">Live</button>
+          </div>
+          <div class="risk-warning" id="riskWarning" style="display:none">
+            <strong>⚠️ Real-money trading carries substantial risk.</strong><br>
+            Automated strategies can and will lose money. Never trade with capital you cannot afford to lose.
+            Past or simulated performance is not indicative of future results.
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Broker / Endpoint</label>
+          <select id="brokerSelect" class="form-select" onchange="UI.renderBrokerFields()">
+            <option value="simulated">Simulated (Paper Trading)</option>
+            <option value="mt4">MetaTrader 4 (bridge)</option>
+            <option value="mt5">MetaTrader 5 (bridge)</option>
+            <option value="ctrader">cTrader Open API</option>
+            <option value="binance">Binance (Crypto)</option>
+          </select>
+        </div>
+        <div id="brokerFields"></div>
+        <div class="form-group">
+          <label>Account Balance (for simulation / display)</label>
+          <input type="number" id="accountBalance" class="form-input" value="10000" step="100">
+        </div>
+        <div class="demo-gate" id="demoGate" style="display:none">
+          <div class="gate-label">Demo Performance Gate</div>
+          <div class="gate-stats" id="gateStats">Complete 50+ demo trades with ≥55% win rate and <5% max DD to enable live trading.</div>
+          <div class="gate-progress">
+            <div class="gate-bar"><div class="gate-fill" id="gateFill" style="width:0%"></div></div>
+            <div class="gate-pct" id="gatePct">0%</div>
+          </div>
+          <div class="gate-status" id="gateStatus">LOCKED</div>
+        </div>
+        <button class="btn btn-secondary full" onclick="saveSettings()">Save Settings</button>
+        <button class="btn btn-primary full" id="connectBtn" onclick="BrokerUI.connect()" style="margin-top:8px;display:none">Connect Broker</button>
+      </div>
+
+      <div class="app-footer">
+        <div>CRT + TBS Adaptive Trader v1.0</div>
+        <div class="footer-sub">Capital Preservation First</div>
+      </div>
+    </div>
+
+    <!-- ===== STATS TAB ===== -->
+    <div class="tab-content" id="tab-stats">
+      <div class="page-title">Performance Statistics</div>
+      <div class="card">
+        <div class="card-title">Per-Asset Performance</div>
+        <div id="assetStats" class="asset-stats-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Strategy Optimization</div>
+        <div class="insights-list" id="insightsList">
+          <div class="empty-state">Collecting trading data… Run trades or backtest to generate insights.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">
+      <span class="nav-icon">◆</span><span class="nav-label">Dashboard</span>
+    </button>
+    <button class="nav-btn" data-tab="markets" onclick="switchTab('markets')">
+      <span class="nav-icon">◉</span><span class="nav-label">Markets</span>
+    </button>
+    <button class="nav-btn" data-tab="trades" onclick="switchTab('trades')">
+      <span class="nav-icon">⇄</span><span class="nav-label">Trades</span>
+    </button>
+    <button class="nav-btn" data-tab="backtest" onclick="switchTab('backtest')">
+      <span class="nav-icon">▤</span><span class="nav-label">Backtest</span>
+    </button>
+    <button class="nav-btn" data-tab="stats" onclick="switchTab('stats')">
+      <span class="nav-icon">◈</span><span class="nav-label">Stats</span>
+    </button>
+    <button class="nav-btn" data-tab="settings" onclick="switchTab('settings')">
+      <span class="nav-icon">⚙</span><span class="nav-label">Settings</span>
+    </button>
+  </nav>
+
+  <!-- Toast Notifications -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Trade Alert Modal -->
+  <div id="alertModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <span id="modalTitle">Signal Alert</span>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/assetProfiles.js"></script>
+<script src="js/assetDetector.js"></script>
+<script src="js/dataFeed.js"></script>
+<script src="js/marketStructure.js"></script>
+<script src="js/volatilityEngine.js"></script>
+<script src="js/strategy.js"></script>
+<script src="js/riskManager.js"></script>
+<script src="js/executionEngine.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/statistics.js"></script>
+<script src="js/backtest.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/brokerAdapters.js"></script>
+<script src="js/brokerUI.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
