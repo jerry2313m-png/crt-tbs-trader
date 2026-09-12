@@ -480,6 +480,32 @@ const Upgrade = {
     } else if (banner) {
       banner.remove();
     }
+
+    // Show reset-emergency bar when in emergency state
+    if (this.state.emergency) {
+      let resetBar = document.getElementById('resetEmergencyBar');
+      if (!resetBar) {
+        resetBar = document.createElement('div');
+        resetBar.id = 'resetEmergencyBar';
+        resetBar.style.cssText = 'position:fixed;bottom:calc(72px + env(safe-area-inset-bottom));left:12px;right:12px;z-index:150;background:var(--bg-card);border:1px solid var(--red);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,0.5)';
+        resetBar.innerHTML = `
+          <div style="flex:1">
+            <div style="color:var(--red);font-weight:700;font-size:13px">🚨 Emergency stop active</div>
+            <div style="color:var(--text-secondary);font-size:11px;margin-top:2px">Automated trading is disabled.</div>
+          </div>
+          <button id="resetEmBtn" style="background:var(--green-dim);color:var(--green);border:1px solid var(--green);padding:10px 14px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">RESET</button>
+        `;
+        document.getElementById('app').appendChild(resetBar);
+        document.getElementById('resetEmBtn').onclick = () => {
+          if (confirm('Only reset EMERGENCY STOP after verifying positions and risk are acceptable.')) {
+            this.resetEmergency();
+            resetBar.remove();
+          }
+        };
+      }
+    } else {
+      document.getElementById('resetEmergencyBar')?.remove();
+    }
   }
 };
 
