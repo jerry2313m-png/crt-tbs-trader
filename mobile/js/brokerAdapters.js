@@ -301,6 +301,36 @@ BrokerAdapters.register({
   getOpenPositions() { return []; }
 });
 
+// ========== Coinbase Advanced Trade ==========
+BrokerAdapters.register({
+  id: 'coinbase',
+  name: 'Coinbase Advanced Trade',
+  isLive: false,
+  requiresCredentials: true,
+  credentialsFields: [
+    { name: 'bridgeUrl', label: 'Backend API URL', type: 'text', placeholder: 'https://your-server.com', default: 'http://localhost:8080' },
+    { name: 'apiKey', label: 'API Key', type: 'password' },
+    { name: 'apiSecret', label: 'API Secret', type: 'password' },
+    { name: 'mode', label: 'Environment', type: 'select', options: ['sandbox','live'] }
+  ],
+  async connect(c) {
+    if (!c.apiKey || !c.apiSecret) throw new Error('API key/secret required');
+    BrokerAdapters.setBridgeUrl(c.bridgeUrl);
+    // Delegate to backend
+    const r = await bridgeRequest('/api/connections','POST',{broker:'coinbase',credentials:c});
+    this.isLive = c.mode === 'live';
+    return r.ok;
+  },
+  disconnect() { try{bridgeRequest('/api/connections/_/disconnect','POST');}catch(e){} this.isLive=false; },
+  getAccountInfo() { return bridgeRequest('/api/account').then(r=>({balance:r.balance||0,equity:r.equity||0,margin:0,freeMargin:r.equity||0,leverage:1,currency:'USD'})); },
+  getSymbolSpec() { return Promise.reject(new Error('not yet')); },
+  getTick() { return Promise.resolve(null); },
+  marketOrder(sym,side,lot,sl,tp,comment) { return bridgeRequest('/api/order','POST',{symbol:sym,side,volume:lot,sl,tp,comment}).then(r=>({orderId:r.ticket,openPrice:r.price||0})); },
+  closePosition(id) { return bridgeRequest('/api/close','POST',{ticket:id}); },
+  modifyPosition(id,sl,tp) { return bridgeRequest('/api/modify','POST',{ticket:id,sl,tp}); },
+  getOpenPositions() { return bridgeRequest('/api/positions').then(r=>r.positions||[]); }
+});
+
 // ========== Binance ==========
 BrokerAdapters.register({
   id: 'binance',

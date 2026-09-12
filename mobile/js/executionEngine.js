@@ -8,6 +8,7 @@ const ExecutionEngine = {
   paperMode: true,
   liveMode: false,
   useBrokerAdapter: false,
+  paused: false,
   lastTradeTime: {}, // symbol -> last trade timestamp
   COOLDOWN_MS: 60000 * 5, // 5 min cooldown per symbol after close
 
@@ -23,6 +24,7 @@ const ExecutionEngine = {
 
   checkEntries(signals) {
     if (!this.autoTrading) return;
+    if (this.paused || Upgrade?.state?.emergency || Upgrade?.state?.paused) return;
     for (const sym in signals) {
       const sig = signals[sym];
       if (!sig?.setup?.ready && sig?.setup?.score < RiskManager.state.minConfidence) continue;

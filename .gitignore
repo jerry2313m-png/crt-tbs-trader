@@ -7,4 +7,16 @@ node_modules/
 .idea/
 *.swp
 *.swo
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+logs/
+*.db
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+coverage/
 crt-tbs-trader.zip

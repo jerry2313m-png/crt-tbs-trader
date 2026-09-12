@@ -8,6 +8,7 @@ const RiskManager = {
     balance: 10000,
     equity: 10000,
     todayPnL: 0,
+    weeklyPnL: 0,
     todayTrades: 0,
     todayWins: 0,
     todayLosses: 0,

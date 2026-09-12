@@ -1,0 +1,158 @@
+/* ===================================================================
+   PLATFORM UPGRADE — additional styles for new controls
+   =================================================================== */
+
+/* Emergency stop button (always visible) */
+.estop-btn {
+  position: fixed;
+  top: calc(44px + env(safe-area-inset-top));
+  right: 10px;
+  z-index: 200;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: white;
+  border: 3px solid #7f1d1d;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.1;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(239,68,68,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  transition: transform 0.15s;
+  animation: estop-pulse 2s infinite;
+}
+.estop-btn:active { transform: scale(0.92); }
+.estop-btn.active { background: linear-gradient(135deg,#22c55e,#15803d); border-color:#14532d; box-shadow:0 4px 20px rgba(34,197,94,0.5); animation:none; }
+.estop-btn .estop-icon { font-size:18px; line-height:1; margin-bottom:1px; }
+@keyframes estop-pulse {
+  0%,100% { box-shadow:0 4px 20px rgba(239,68,68,0.5); }
+  50% { box-shadow:0 4px 30px rgba(239,68,68,0.9); }
+}
+
+.pause-btn {
+  position: fixed;
+  top: calc(44px + env(safe-area-inset-top));
+  right: 74px;
+  z-index: 200;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--yellow-dim, rgba(245,158,11,0.2));
+  border: 2px solid var(--yellow);
+  color: var(--yellow);
+  font-size:16px;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.pause-btn.paused { background:rgba(245,158,11,0.3); }
+
+/* Health status bar */
+.health-bar {
+  display:flex; gap:4px; padding:8px 12px;
+  background:var(--bg-secondary); border-bottom:1px solid var(--border);
+  overflow-x:auto; scrollbar-width:none;
+  margin: -12px -12px 12px;
+}
+.health-bar::-webkit-scrollbar { display:none; }
+.health-chip {
+  flex-shrink:0;
+  display:flex; align-items:center; gap:4px;
+  font-size:9px; font-weight:700; padding:3px 8px;
+  border-radius:10px; letter-spacing:0.4px; text-transform:uppercase;
+  background:var(--bg-elevated); color:var(--text-muted);
+}
+.health-chip .hdot {
+  width:6px;height:6px;border-radius:50%;
+  background:var(--red);
+}
+.health-chip.green .hdot { background:var(--green); }
+.health-chip.yellow .hdot { background:var(--yellow); }
+.health-chip.green { color:var(--green); }
+.health-chip.yellow { color:var(--yellow); }
+.health-chip.red { color:var(--red); }
+
+/* Mode badge (PAPER/DEMO/LIVE) */
+.mode-badge {
+  display:inline-block;
+  font-size:10px;font-weight:800;
+  padding:3px 8px;border-radius:4px;
+  letter-spacing:0.6px;
+}
+.mode-badge.paper { background:rgba(139,92,246,0.2); color:var(--purple); }
+.mode-badge.demo  { background:var(--cyan-dim); color:var(--cyan); }
+.mode-badge.live  { background:var(--red-dim); color:var(--red); animation:pulse 2s infinite; }
+
+/* Expanded account card */
+.account-card {
+  background: linear-gradient(135deg,#151c2c 0%, #1e2740 100%);
+  border:1px solid var(--border-light);
+  border-radius:var(--radius); padding:14px; margin-bottom:12px;
+}
+.account-card .acc-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.account-card .acc-row:last-child { margin-bottom:0; }
+.account-card .acc-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; }
+.account-card .acc-value { font-family:var(--font-mono); font-weight:700; font-size:13px; }
+.account-card .acc-value.green { color:var(--green); }
+.account-card .acc-value.red { color:var(--red); }
+
+/* Two-stage activation summary */
+.live-confirm {
+  background:var(--bg-elevated);
+  border-radius:var(--radius-sm);
+  padding:12px; font-size:12px;
+  margin-top:10px;
+}
+.live-confirm table { width:100%; border-collapse:collapse; }
+.live-confirm td { padding:4px 0; font-size:12px; }
+.live-confirm td:first-child { color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:0.4px; }
+.live-confirm td:last-child { text-align:right; font-family:var(--font-mono); font-weight:600; }
+
+/* Broker status extended */
+.broker-detail {
+  font-family:var(--font-mono); font-size:11px;
+}
+.broker-detail .bd-row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed var(--border); }
+.broker-detail .bd-row:last-child { border-bottom:none; }
+.bd-label { color:var(--text-muted); font-family:var(--font-main); text-transform:uppercase; font-size:10px; letter-spacing:0.4px; }
+
+/* Emergency modal */
+.emergency-options label { display:flex; align-items:center; gap:8px; padding:8px; background:var(--bg-elevated); border-radius:6px; margin:6px 0; cursor:pointer; font-size:12px; }
+
+/* Weekly progress */
+.progress-row.weekly .progress-label span:first-child::before { content:"📅 "; }
+
+/* Asset profile editor (compact) */
+.profile-section { margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); }
+.profile-section .ps-title { font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:8px;}
+.mini-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.mini-grid .form-group { margin-bottom:0; }
+.mini-grid label { font-size:10px; margin-bottom:3px; }
+.mini-grid .form-input, .mini-grid .form-select { padding:8px 10px; font-size:12px; }
+
+/* Test connection button */
+.btn-sm { padding:8px 12px; font-size:12px; }
+.btn-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+.btn-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:8px; }
+.btn-warn { background:var(--yellow); color:#000; }
+.btn-danger { background:var(--red); color:#fff; }
+
+/* Signal ID badge */
+.signal-id-badge {
+  display:inline-block; font-family:var(--font-mono); font-size:9px;
+  color:var(--text-muted); letter-spacing:0.5px; margin-top:6px;
+}
+
+/* Fail-safe banner */
+.failsafe-banner {
+  background:var(--red-dim); border:1px solid var(--red);
+  color:var(--red); font-size:12px; font-weight:700;
+  padding:10px 12px; border-radius:var(--radius-sm); margin-bottom:12px;
+  text-align:center;
+}
