@@ -66,3 +66,33 @@ Capital preservation first. No martingale, no unlimited grid, no revenge trading
 ## Disclaimer
 
 This is educational/research software, not financial advice. All trading carries substantial risk of loss. You are fully responsible for any use you make of it.
+
+## Connecting to MetaTrader 5 (real or demo account)
+
+To trade an actual MT5 account you need a **local bridge** (MT5 does not expose a browser API directly due to security restrictions).
+
+### 1. On your Windows PC (MT5 runs on Windows)
+- Install **MetaTrader 5** from your broker and log into your account (demo first!)
+- Install **Python 3.10+** from [python.org](https://python.org) (check "Add Python to PATH")
+- Download this repository (Code → Download ZIP) and unzip it
+- Double-click **`start_mt5_bridge.bat`** (it installs dependencies and starts the bridge)
+- The bridge serves the trading app at **http://localhost:8080** — open that URL in your browser
+
+### 2. On your phone/other device
+- Keep the bridge running on your PC
+- The app at `http://<your-pc-ip>:8080` will connect on your LAN
+- Go to **Settings → Broker Connection → MetaTrader 5 (Local Bridge)**
+- Enter:
+  - **Bridge URL**: `http://localhost:8080` (or your PC's LAN IP from phone)
+  - **Login**: your MT5 account number
+  - **Password**: your MT5 password (stays local — only sent to your own bridge)
+  - **Server**: your broker server name (e.g. `BrokerName-Demo`)
+  - **Account Type**: **DEMO** (always test demo first!)
+- Tap **Connect Broker**. The status turns green when connected and your balance/equity/margin appear.
+
+### 3. Important safety
+- **Always start on DEMO** for weeks before any real money
+- The app keeps the **50-trade / 55% win rate / ≤5% max DD** gate enforced even for demo accounts
+- Enable "Allow Algorithmic Trading" in MT5 (Tools → Options → Expert Advisors)
+- Keep your PC on and the bridge window open while trading
+- All orders go through your own locally running MT5 terminal — the web app never sees your password after the form submission to localhost
