@@ -205,6 +205,9 @@ const ExecutionEngine = {
         if (RiskManager.state.breakEven) {
           t.sl = t.originalEntry + (t.direction === 'BUY' ? -prof.pointValue : prof.pointValue);
           t.breakEvenSet = true;
+          if (t.brokerOrderId && this.useBrokerAdapter && BrokerAdapters.isLive()) {
+            BrokerAdapters.getActive().modifyPosition(t.brokerOrderId, t.sl, t.tp).catch(() => {});
+          }
           Notifications.show('info', 'Break-even set', `${t.symbol} SL moved to entry`);
         }
       }
@@ -217,12 +220,25 @@ const ExecutionEngine = {
       if (RiskManager.state.trailingStop && progress >= prof.trailingStopActivation) {
         t.trailingActive = true;
         const trailDist = t.atr * 0.8;
+        let newSL = t.sl;
         if (t.direction === 'BUY') {
-          const newSL = t.trailingHigh - trailDist;
-          if (newSL > t.sl) t.sl = newSL;
+          newSL = Math.max(t.sl, t.trailingHigh - trailDist);
         } else {
-          const newSL = t.trailingLow + trailDist;
-          if (newSL < t.sl) t.sl = newSL;
+          newSL = Math.min(t.sl, t.trailingLow + trailDist);
+        }
+        if (newSL !== t.sl) {
+          t.sl = newSL;
+          if (t.brokerOrderId && this.useBrokerAdapter && BrokerAdapters.isLive()) {
+            BrokerAdapters.getActive().modifyPosition(t.brokerOrderId, t.sl, t.tp).catch(() => {});
+          }
+        }
+      }
+
+      // Break-even SL move: push to broker
+      if (RiskManager.state.breakEven && t.breakEvenSet && t._slPushed !== t.sl) {
+        t._slPushed = t.sl;
+        if (t.brokerOrderId && this.useBrokerAdapter && BrokerAdapters.isLive()) {
+          BrokerAdapters.getActive().modifyPosition(t.brokerOrderId, t.sl, t.tp).catch(() => {});
         }
       }
 
@@ -275,7 +291,19 @@ const ExecutionEngine = {
 
   closeTradeById(id) {
     const idx = this.trades.open.findIndex(t => t.id === id);
-    if (idx >= 0) this.closeTrade(idx, 'MANUAL');
+    if (idx >= 0) {
+      const t = this.trades.open[idx];
+      // If this is a broker position with a real ticket, close through the broker
+      if (t.brokerOrderId && this.useBrokerAdapter && BrokerAdapters.isLive()) {
+        BrokerAdapters.getActive().closePosition(t.brokerOrderId).then(result => {
+          this.closeTrade(idx, 'MANUAL');
+        }).catch(err => {
+          Notifications.show('sell', 'Close failed', err.message || String(err));
+        });
+        return;
+      }
+      this.closeTrade(idx, 'MANUAL');
+    }
   },
 
   // Realistic commission (per side, in account currency)

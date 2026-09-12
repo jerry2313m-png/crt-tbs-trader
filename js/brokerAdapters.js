@@ -2,30 +2,34 @@
 // BROKER ADAPTERS — Pluggable execution endpoints
 // ============================================
 //
-// To connect to a real broker, implement the IBrokerAdapter interface below
-// and register it in BrokerAdapters.register(). NEVER commit API keys.
+// For live MT5 trading:
+//   1. Install MetaTrader 5 on your PC and log into your real/demo account.
+//   2. pip install MetaTrader5 flask flask-cors
+//   3. Run: python mt5_bridge.py  (serves the app on http://localhost:8080)
+//   4. Open the app and go to Settings → Broker → MetaTrader 5.
+//      Enter login / password / server and tap Connect.
+//   5. The app will route all orders through your MT5 terminal.
 //
-// The simulated adapter is used in demo/paper mode. Other adapters require
-// a network endpoint (typically a REST/WebSocket bridge you host next to
-// your MT4/MT5 terminal or to the broker's API).
+// The "simulated" adapter is used in pure demo / paper mode (no broker).
 
 const BrokerAdapters = {
   adapters: {},
   active: 'simulated',
   connectionState: 'disconnected',
   credentials: {},
+  bridgeUrl: '',  // set when connected to local MT5 bridge
 
-  register(adapter) {
-    this.adapters[adapter.id] = adapter;
-  },
+  register(adapter) { this.adapters[adapter.id] = adapter; },
 
   setActive(id) {
     if (!this.adapters[id]) throw new Error('Unknown broker adapter: ' + id);
     this.active = id;
   },
 
-  getActive() {
-    return this.adapters[this.active];
+  getActive() { return this.adapters[this.active]; },
+
+  setBridgeUrl(url) {
+    this.bridgeUrl = url.replace(/\/$/, '');
   },
 
   async connect(creds) {
@@ -37,6 +41,7 @@ const BrokerAdapters = {
       this.connectionState = ok ? 'connected' : 'failed';
       return ok;
     } catch (e) {
+      console.error(e);
       this.connectionState = 'failed';
       return false;
     }
@@ -52,19 +57,21 @@ const BrokerAdapters = {
   }
 };
 
-// ===== Adapter interface (all adapters must implement): =====
-// connect(creds) -> Promise<bool>
-// disconnect()
-// getAccountInfo() -> { balance, equity, margin, freeMargin, leverage, currency }
-// getSymbols() -> [string]
-// getSymbolSpec(sym) -> { point, digits, contractSize, minLot, maxLot, lotStep, spreadBid, spreadAsk, stopsLevel, marginInit }
-// getTick(sym) -> { bid, ask, time }
-// marketOrder(sym, side, lot, sl, tp, comment) -> Promise<{orderId, openPrice, openedAt}>
-// closePosition(orderId) -> Promise<{closePrice, pnl}>
-// modifyPosition(orderId, sl, tp) -> Promise<bool>
-// getOpenPositions() -> [ {orderId, symbol, side, lot, openPrice, sl, tp, pnl} ]
+// Helper for HTTP requests to bridge
+async function bridgeRequest(path, method = 'GET', body = null) {
+  const url = BrokerAdapters.bridgeUrl + path;
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  let data;
+  try { data = await r.json(); } catch (e) { throw new Error(`Bridge returned non-JSON (HTTP ${r.status})`); }
+  if (!r.ok || data.ok === false) {
+    throw new Error(data.error || `HTTP ${r.status}`);
+  }
+  return data;
+}
 
-// ===== Simulated adapter =====
+// ========== SIMULATED adapter ==========
 BrokerAdapters.register({
   id: 'simulated',
   name: 'Simulated / Paper Trading',
@@ -74,86 +81,192 @@ BrokerAdapters.register({
   disconnect() {},
 
   getAccountInfo() {
-    return {
+    return Promise.resolve({
       balance: RiskManager.state.balance,
       equity: RiskManager.state.equity,
       margin: RiskManager.usedMargin(),
       freeMargin: RiskManager.state.equity - RiskManager.usedMargin(),
       leverage: RiskManager.state.smallAccount ? 100 : 500,
       currency: 'USD'
-    };
+    });
   },
 
   getSymbolSpec(rawSym) {
     const p = AssetDetector.getProfile(rawSym);
     const s = DataFeed.get(rawSym);
-    return {
-      point: p.pointValue,
-      digits: p.decimals,
-      contractSize: p.contractSize,
-      minLot: p.minLot,
-      maxLot: p.maxLot,
-      lotStep: p.lotStep,
-      spreadBid: s?.spread / 2 || 0,
-      spreadAsk: s?.spread / 2 || 0,
-      stopsLevel: 5,  // minimum stop distance in points
-      marginInit: 0.02, // 2% margin
-    };
+    return Promise.resolve({
+      point: p.pointValue, digits: p.decimals, contractSize: p.contractSize,
+      minLot: p.minLot, maxLot: p.maxLot, lotStep: p.lotStep,
+      stopsLevel: 5, marginInit: 0.02,
+      bid: s?.bid, ask: s?.ask, spread: s?.spread,
+    });
   },
 
   getTick(sym) {
     const s = DataFeed.get(sym);
-    if (!s) return null;
-    return { bid: s.bid, ask: s.ask, time: Date.now() };
+    return Promise.resolve(s ? { bid: s.bid, ask: s.ask, time: Date.now() } : null);
   },
 
   marketOrder(sym, side, lot, sl, tp, comment) {
     const s = DataFeed.get(sym);
-    const price = side === 'BUY' ? s.ask : s.bid;
-    // Simulate small slippage
+    const price = side === 'buy' ? s.ask : s.bid;
     const slip = VolatilityEngine.estimateSlippage(DataFeed.getCandles(sym, 'M5'), s.profile);
-    const execPrice = side === 'BUY' ? price + slip * Math.random() : price - slip * Math.random();
-    const id = 'LIVE-' + Date.now() + Math.floor(Math.random() * 10000);
+    const execPrice = side === 'buy' ? price + slip * Math.random() : price - slip * Math.random();
+    const id = 'DEMO-' + Date.now() + Math.floor(Math.random() * 10000);
     return Promise.resolve({ orderId: id, openPrice: execPrice, openedAt: Date.now() });
   },
 
-  closePosition(orderId) {
-    // ExecutionEngine already computes price/slippage in manageTrades();
-    // this stub exists so the interface is uniform.
-    return Promise.resolve({ closePrice: 0, pnl: 0 });
-  },
-
+  closePosition() { return Promise.resolve({ closePrice: 0, pnl: 0 }); },
   modifyPosition() { return Promise.resolve(true); },
-
-  getOpenPositions() { return []; }
+  getOpenPositions() { return Promise.resolve([]); }
 });
 
-// ===== MetaTrader 4/5 bridge adapter =====
-// Expected bridge: a small local HTTP/WebSocket service you run on the same
-// machine as MT4/MT5 (e.g. a Python/Node EA that exposes a REST API).
+// ========== META TRADER 5 (local bridge) ==========
 BrokerAdapters.register({
-  id: 'mt4',
-  name: 'MetaTrader 4 (via bridge)',
-  isLive: true,
-  requiresEndpoint: true,
+  id: 'mt5',
+  name: 'MetaTrader 5 (Local Bridge)',
+  isLive: false, // set true only after successful connect & user confirms demo/live
+  requiresBridge: true,
   requiresCredentials: true,
   credentialsFields: [
-    { name: 'endpoint', label: 'Bridge Endpoint URL', placeholder: 'http://127.0.0.1:8001', type: 'text' },
-    { name: 'login', label: 'MT4 Login', placeholder: '12345678', type: 'text' },
-    { name: 'password', label: 'Password', type: 'password' },
-    { name: 'server', label: 'Server', placeholder: 'Broker-Demo', type: 'text' }
+    { name: 'bridgeUrl', label: 'Bridge URL', type: 'text', placeholder: 'http://localhost:8080', default: 'http://localhost:8080' },
+    { name: 'login', label: 'MT5 Account Login', type: 'text', placeholder: '12345678' },
+    { name: 'password', label: 'Investor / Master Password', type: 'password' },
+    { name: 'server', label: 'Broker Server Name', type: 'text', placeholder: 'BrokerName-Demo' },
+    { name: 'accountType', label: 'Account Type', type: 'select', options: ['DEMO', 'LIVE'] },
   ],
 
   async connect(creds) {
-    if (!creds.endpoint) return false;
+    const url = (creds.bridgeUrl || 'http://localhost:8080').replace(/\/$/, '');
+    BrokerAdapters.setBridgeUrl(url);
     try {
-      // In a real deployment this would POST to the bridge:
-      // const r = await fetch(creds.endpoint + '/connect', {method:'POST', body: JSON.stringify(creds)});
-      // return r.ok;
-      this._endpoint = creds.endpoint;
-      return false; // returns false until bridge is actually present
-    } catch (e) { return false; }
+      // First check bridge health
+      const health = await bridgeRequest('/api/health');
+      if (!health.ok) throw new Error('Bridge not healthy');
+      // Then call connect with credentials
+      const result = await bridgeRequest('/api/connect', 'POST', {
+        login: creds.login,
+        password: creds.password,
+        server: creds.server,
+      });
+      if (!result.ok) throw new Error(result.error);
+      this.accountInfo = result.account;
+      this.isLive = creds.accountType === 'LIVE';
+      this._demoMode = creds.accountType === 'DEMO';
+      return true;
+    } catch (e) {
+      throw new Error('Bridge connection failed: ' + e.message);
+    }
   },
+
+  disconnect() {
+    try { bridgeRequest('/api/disconnect', 'POST'); } catch (e) {}
+    this.isLive = false;
+  },
+
+  async getAccountInfo() {
+    const r = await bridgeRequest('/api/account');
+    const a = r.account;
+    return {
+      balance: a.balance,
+      equity: a.equity,
+      margin: a.margin,
+      freeMargin: a.margin_free,
+      leverage: a.leverage,
+      currency: a.currency,
+      login: a.login,
+      server: a.server,
+      name: a.name,
+    };
+  },
+
+  async getSymbolSpec(rawSym) {
+    try {
+      const r = await bridgeRequest('/api/symbol/' + encodeURIComponent(rawSym));
+      const i = r.info;
+      const t = i.tick || {};
+      return {
+        point: i.point,
+        digits: i.digits,
+        contractSize: i.trade_contract_size,
+        minLot: i.volume_min,
+        maxLot: i.volume_max,
+        lotStep: i.volume_step,
+        stopsLevel: i.stops_level,
+        spread: i.spread * i.point,
+        bid: t.bid,
+        ask: t.ask,
+        currencyProfit: i.currency_profit,
+      };
+    } catch (e) {
+      // Fallback to local detector
+      const p = AssetDetector.getProfile(rawSym);
+      return { point: p.pointValue, digits: p.decimals, contractSize: p.contractSize,
+               minLot: p.minLot, maxLot: p.maxLot, lotStep: p.lotStep, stopsLevel: 5 };
+    }
+  },
+
+  async getTick(sym) {
+    try {
+      const r = await bridgeRequest('/api/tick/' + encodeURIComponent(sym));
+      const t = r.tick;
+      return { bid: t.bid, ask: t.ask, time: t.time * 1000 };
+    } catch (e) { return null; }
+  },
+
+  async marketOrder(sym, side, lot, sl, tp, comment) {
+    const r = await bridgeRequest('/api/order', 'POST', {
+      symbol: sym, side, lot, sl, tp, comment,
+    });
+    if (!r.ok) throw new Error(r.error);
+    return {
+      orderId: r.ticket,
+      openPrice: r.open_price,
+      openedAt: Date.now(),
+      volume: r.volume,
+    };
+  },
+
+  async closePosition(orderId) {
+    const r = await bridgeRequest('/api/close', 'POST', { ticket: parseInt(orderId) });
+    return { ok: r.ok, price: r.result?.price || 0 };
+  },
+
+  async modifyPosition(orderId, sl, tp) {
+    const r = await bridgeRequest('/api/modify', 'POST', { ticket: parseInt(orderId), sl, tp });
+    return r.ok === true;
+  },
+
+  async getOpenPositions() {
+    try {
+      const r = await bridgeRequest('/api/positions');
+      return (r.positions || []).map(p => ({
+        orderId: p.ticket,
+        symbol: p.symbol,
+        side: p.type === 0 ? 'BUY' : 'SELL',
+        lot: p.volume,
+        openPrice: p.price_open,
+        sl: p.sl,
+        tp: p.tp,
+        pnl: p.profit,
+        comment: p.comment,
+        openTime: p.time * 1000,
+        magic: p.magic,
+      }));
+    } catch (e) { return []; }
+  }
+});
+
+// ========== MT4 stub (same bridge protocol; uses MT4 Python API if you switch) ==========
+BrokerAdapters.register({
+  id: 'mt4',
+  name: 'MetaTrader 4',
+  isLive: false,
+  requiresCredentials: true,
+  credentialsFields: [
+    { name: 'note', label: 'Note: MT4 requires a bridge too. See mt4_bridge.py (coming soon). The MT5 bridge above works for both MT5-built and hedge-enabled accounts.', type: 'static' },
+  ],
+  async connect() { return false; },
   disconnect() {},
   getAccountInfo() { return { balance:0, equity:0, margin:0, freeMargin:0, leverage:100, currency:'USD' }; },
   getSymbolSpec() { return null; },
@@ -164,34 +277,11 @@ BrokerAdapters.register({
   getOpenPositions() { return []; }
 });
 
-BrokerAdapters.register({
-  id: 'mt5',
-  name: 'MetaTrader 5 (via bridge)',
-  isLive: true,
-  requiresEndpoint: true,
-  requiresCredentials: true,
-  credentialsFields: [
-    { name: 'endpoint', label: 'Bridge Endpoint URL', placeholder: 'http://127.0.0.1:8002', type: 'text' },
-    { name: 'login', label: 'MT5 Login', type: 'text' },
-    { name: 'password', label: 'Password', type: 'password' },
-    { name: 'server', label: 'Server', type: 'text' }
-  ],
-  async connect(c) { this._endpoint = c.endpoint; return false; },
-  disconnect() {},
-  getAccountInfo() { return { balance:0, equity:0, margin:0, freeMargin:0, leverage:100, currency:'USD' }; },
-  getSymbolSpec() { return null; },
-  getTick() { return null; },
-  marketOrder() { return Promise.reject(new Error('MT5 bridge not connected')); },
-  closePosition() { return Promise.reject(new Error('MT5 bridge not connected')); },
-  modifyPosition() { return Promise.reject(new Error('MT5 bridge not connected')); },
-  getOpenPositions() { return []; }
-});
-
-// ===== cTrader Open API adapter =====
+// ========== cTrader ==========
 BrokerAdapters.register({
   id: 'ctrader',
   name: 'cTrader (Open API)',
-  isLive: true,
+  isLive: false,
   requiresCredentials: true,
   credentialsFields: [
     { name: 'clientId', label: 'API Client ID', type: 'text' },
@@ -211,11 +301,11 @@ BrokerAdapters.register({
   getOpenPositions() { return []; }
 });
 
-// ===== Binance adapter (crypto spot/futures) =====
+// ========== Binance ==========
 BrokerAdapters.register({
   id: 'binance',
   name: 'Binance (Crypto)',
-  isLive: true,
+  isLive: false,
   requiresCredentials: true,
   credentialsFields: [
     { name: 'apiKey', label: 'API Key', type: 'text' },
@@ -225,10 +315,7 @@ BrokerAdapters.register({
   async connect() { return false; },
   disconnect() {},
   getAccountInfo() { return { balance:0, equity:0, margin:0, freeMargin:0, leverage:10, currency:'USDT' }; },
-  getSymbolSpec(rawSym) {
-    const n = AssetDetector.normalize(rawSym);
-    return { point: 0.01, digits: 2, contractSize: 1, minLot: 0.001, maxLot: 1000, lotStep: 0.001, stopsLevel: 10, marginInit: 0.1 };
-  },
+  getSymbolSpec() { return { point:0.01, digits:2, contractSize:1, minLot:0.001, maxLot:1000, lotStep:0.001, stopsLevel:10 }; },
   getTick() { return null; },
   marketOrder() { return Promise.reject(new Error('Binance API not connected')); },
   closePosition() { return Promise.reject(new Error('Binance API not connected')); },
