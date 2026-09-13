@@ -385,10 +385,11 @@
           <label>Broker / Endpoint</label>
           <select id="brokerSelect" class="form-select" onchange="UI.renderBrokerFields()">
             <option value="simulated">Simulated (Paper Trading)</option>
-            <option value="mt4">MetaTrader 4 (bridge)</option>
-            <option value="mt5">MetaTrader 5 (bridge)</option>
+            <option value="metaapi">MetaTrader via MetaApi.cloud (Exness, IC Markets, etc.)</option>
+            <option value="mt5-local">MetaTrader 5 (self-hosted Windows VPS bridge)</option>
             <option value="ctrader">cTrader Open API</option>
             <option value="binance">Binance (Crypto)</option>
+            <option value="coinbase">Coinbase Advanced Trade</option>
           </select>
         </div>
         <div id="brokerFields"></div>
